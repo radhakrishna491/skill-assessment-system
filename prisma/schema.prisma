@@ -1,13 +1,107 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../app/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "sqlite"
+}
+
+// ROLES
+enum Role {
+  STUDENT
+  TRAINER
+  ADMIN
+}
+
+// USERS (Base table for everyone)
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(STUDENT)
+  createdAt DateTime @default(now())
+
+  student Student?
+  trainer Trainer?
+}
+
+// STUDENTS
+model Student {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  branch    String?
+  year      Int?
+  resumeText String? // Extracted text from PDF
+  
+  skills        StudentSkill[]
+  assessments   Assessment[]
+  allocations   TeamAllocation[]
+}
+
+// STUDENT SKILLS
+model StudentSkill {
+  id            String   @id @default(cuid())
+  studentId     String
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  skillName     String
+  domain        String
+  selfLevel     Int      @default(1) // 1-5
+  verifiedLevel Int?     // from assessment
+}
+
+// TRAINERS
+model Trainer {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  expertise String   // Comma-separated (e.g. "Data Science, AI")
+  bio       String?
+  
+  assessments Assessment[]
+}
+
+// TEAMS
+model Team {
+  id             String   @id @default(cuid())
+  name           String
+  domain         String
+  requiredSkills String   // JSON string of required skills
+  description    String?
+  
+  allocations    TeamAllocation[]
+}
+
+// TEAM ALLOCATIONS
+model TeamAllocation {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  score       Float
+  reasons     String   // JSON string of reasons
+  status      String   @default("recommended") // recommended, approved, overridden
+  createdAt   DateTime @default(now())
+}
+
+// ASSESSMENTS / INTERVIEW FEEDBACK
+model Assessment {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  trainerId  String
+  trainer    Trainer  @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  
+  domain     String
+  scores     String   // JSON string of skill scores
+  feedback   String
+  strengths  String   // Comma-separated
+  weaknesses String   // Comma-separated
+  createdAt  DateTime @default(now())
 }
