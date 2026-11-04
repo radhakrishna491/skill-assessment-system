@@ -6,14 +6,12 @@ datasource db {
   provider = "sqlite"
 }
 
-// ROLES
 enum Role {
   STUDENT
   TRAINER
   ADMIN
 }
 
-// USERS (Base table for everyone)
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -26,82 +24,103 @@ model User {
   trainer Trainer?
 }
 
-// STUDENTS
 model Student {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  branch    String?
-  year      Int?
-  resumeText String? // Extracted text from PDF
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch     String?
+  year       Int?
+  resumeText String? 
   
   skills        StudentSkill[]
   assessments   Assessment[]
   allocations   TeamAllocation[]
+  projects      Project[]
+  certifications Certification[]
+  skillGaps     SkillGap[]
 }
 
-// STUDENT SKILLS
+// NEW: Added source tracking
 model StudentSkill {
   id            String   @id @default(cuid())
   studentId     String
   student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
   skillName     String
   domain        String
   selfLevel     Int      @default(1) // 1-5
-  verifiedLevel Int?     // from assessment
+  verifiedLevel Int?     
+  source        String   @default("self") // "self", "resume", "verified"
 }
 
-// TRAINERS
+model Project {
+  id          String  @id @default(cuid())
+  studentId   String
+  student     Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  technologies String
+}
+
+model Certification {
+  id          String  @id @default(cuid())
+  studentId   String
+  student     Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  title       String
+  issuer      String
+}
+
 model Trainer {
   id        String   @id @default(cuid())
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  expertise String   // Comma-separated (e.g. "Data Science, AI")
+  expertise String   
   bio       String?
-  
   assessments Assessment[]
 }
 
-// TEAMS
 model Team {
   id             String   @id @default(cuid())
   name           String
   domain         String
-  requiredSkills String   // JSON string of required skills
+  requiredSkills String   // JSON string with weights (e.g. [{"skill":"Python", "weight":5}])
   description    String?
-  
   allocations    TeamAllocation[]
 }
 
-// TEAM ALLOCATIONS
 model TeamAllocation {
   id          String   @id @default(cuid())
   studentId   String
   student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   teamId      String
   team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  
   score       Float
-  reasons     String   // JSON string of reasons
-  status      String   @default("recommended") // recommended, approved, overridden
+  reasons     String   
+  status      String   @default("recommended") 
   createdAt   DateTime @default(now())
 }
 
-// ASSESSMENTS / INTERVIEW FEEDBACK
 model Assessment {
   id         String   @id @default(cuid())
   studentId  String
   student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   trainerId  String
   trainer    Trainer  @relation(fields: [trainerId], references: [id], onDelete: Cascade)
-  
   domain     String
-  scores     String   // JSON string of skill scores
+  scores     String   
   feedback   String
-  strengths  String   // Comma-separated
-  weaknesses String   // Comma-separated
+  strengths  String   
+  weaknesses String   
   createdAt  DateTime @default(now())
+}
+
+// NEW: Skill Gap Analysis
+model SkillGap {
+  id             String   @id @default(cuid())
+  studentId      String
+  student        Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  targetTeamId   String
+  missingSkill   String
+  severity       String   // "low", "medium", "critical"
+  learningAction String
+  createdAt      DateTime @default(now())
 }
