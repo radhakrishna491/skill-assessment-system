@@ -7,6 +7,7 @@ import { getToken, getUser, removeToken } from '@/lib/auth-client'
 export default function TrainerDashboard() {
   const router = useRouter()
   const [students, setStudents] = useState<any[]>([])
+  const [assessments, setAssessments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   
@@ -19,25 +20,40 @@ export default function TrainerDashboard() {
 
   const user = getUser()
 
-  useEffect(() => {
+  const fetchData = async () => {
     const token = getToken()
     if (!token) {
       router.push('/login')
       return
     }
 
-    fetch('/api/trainer/students', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.students) setStudents(data.students)
-        setLoading(false)
-      })
-      .catch(() => {
-        removeToken()
-        router.push('/login')
-      })
+    try {
+      const headers = { Authorization: `Bearer ${token}` }
+      
+      const [studentsRes, assessmentsRes] = await Promise.all([
+        fetch('/api/trainer/students', { headers }),
+        fetch('/api/trainer/assessment', { headers })
+      ])
+
+      if (studentsRes.ok) {
+        const data = await studentsRes.json()
+        setStudents(data.students)
+      }
+      if (assessmentsRes.ok) {
+        const data = await assessmentsRes.json()
+        setAssessments(data.assessments)
+      }
+    } catch (err) {
+      console.error(err)
+      removeToken()
+      router.push('/login')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchData()
   }, [router])
 
   const handleLogout = () => {
@@ -60,7 +76,7 @@ export default function TrainerDashboard() {
         body: JSON.stringify({
           studentId: selectedStudent.id,
           domain,
-          scores: { overall: 8 }, // Hardcoded for demo simplicity
+          scores: { overall: 8 },
           feedback,
           strengths,
           weaknesses
@@ -74,6 +90,8 @@ export default function TrainerDashboard() {
         setFeedback('')
         setStrengths('')
         setWeaknesses('')
+        // Refresh the data to show the new assessment in history
+        fetchData()
       } else {
         alert('Failed to submit evaluation')
       }
@@ -102,31 +120,61 @@ export default function TrainerDashboard() {
         </div>
 
         {/* Student List */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {students.map(student => (
-            <div key={student.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">{student.user.name}</h3>
-              <p className="text-sm text-gray-500 mb-4">{student.user.email}</p>
-              
-              <div className="mb-4">
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Skills</p>
-                <div className="flex flex-wrap gap-1">
-                  {student.skills.map((s: any) => (
-                    <span key={s.id} className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
-                      {s.skillName}
-                    </span>
-                  ))}
+        <div>
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Students to Evaluate</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {students.map(student => (
+              <div key={student.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h3 className="text-lg font-bold text-gray-900">{student.user.name}</h3>
+                <p className="text-sm text-gray-500 mb-4">{student.user.email}</p>
+                
+                <div className="mb-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Skills</p>
+                  <div className="flex flex-wrap gap-1">
+                    {student.skills.map((s: any) => (
+                      <span key={s.id} className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
+                        {s.skillName}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <button 
-                onClick={() => setSelectedStudent(student)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition"
-              >
-                Evaluate Student
-              </button>
+                <button 
+                  onClick={() => setSelectedStudent(student)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition"
+                >
+                  Evaluate Student
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Past Evaluations */}
+        <div className="pt-8">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Your Past Evaluations</h2>
+          {assessments.length === 0 ? (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-gray-500">
+              You haven't submitted any evaluations yet.
             </div>
-          ))}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {assessments.map(a => (
+                <div key={a.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-md font-bold text-gray-900">{a.student.user.name}</h3>
+                    <span className="text-xs text-gray-400">{new Date(a.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <p className="text-xs font-semibold text-blue-600 mb-2">Domain: {a.domain}</p>
+                  <p className="text-sm text-gray-600 mb-3">"{a.feedback}"</p>
+                  <div className="flex gap-4 text-xs">
+                    <p className="text-green-600"><strong>Strengths:</strong> {a.strengths}</p>
+                    <p className="text-red-600"><strong>Weaknesses:</strong> {a.weaknesses}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Evaluation Modal */}

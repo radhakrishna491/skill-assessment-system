@@ -62,3 +62,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+// GET: Fetch all past assessments by this trainer
+export async function GET(req: Request) {
+  try {
+    const authHeader = req.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const payload = verifyToken(authHeader.split(' ')[1])
+    if (!payload || payload.role !== 'TRAINER') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const trainer = await prisma.trainer.findUnique({ where: { userId: payload.userId } })
+    if (!trainer) return NextResponse.json({ error: 'Trainer profile not found' }, { status: 404 })
+
+    const assessments = await prisma.assessment.findMany({
+      where: { trainerId: trainer.id },
+      include: {
+        student: {
+          include: { user: { select: { name: true } } }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    return NextResponse.json({ assessments })
+  } catch (error) {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
