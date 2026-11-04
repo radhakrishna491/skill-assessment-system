@@ -17,9 +17,12 @@ export async function POST(req: Request) {
 
     const formData = await req.formData()
     const file = formData.get('resume') as File
-
-    if (!file) return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
-    if (file.type !== 'application/pdf') return NextResponse.json({ error: 'File must be a PDF' }, { status: 400 })
+    if (!file || !(file instanceof File)) {
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
+    }
+    if (file.type !== 'application/pdf') {
+      return NextResponse.json({ error: 'File must be a PDF' }, { status: 400 })
+    }
 
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
