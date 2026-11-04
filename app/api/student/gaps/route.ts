@@ -21,7 +21,7 @@ export async function GET(req: Request) {
 
     // 1. Find the best team for this student
     const teams = await prisma.team.findMany()
-    let bestTeam = null
+    let bestTeam: any = null // <--- Added ': any' to stop TypeScript from complaining
     let maxMatch = -1
 
     for (const team of teams) {
@@ -55,15 +55,14 @@ export async function GET(req: Request) {
     }
 
     // 3. Find a matching Trainer based on the best team's domain
-    let recommendedTrainer = null
+    let recommendedTrainer: any = null
     if (bestTeam) {
-      // Find a trainer whose expertise string contains the domain (e.g., "Data Science")
       const trainers = await prisma.trainer.findMany({
         include: { user: { select: { name: true, email: true } } }
       })
       
       const matchedTrainer = trainers.find(t => 
-        t.expertise.toLowerCase().includes(bestTeam!.domain.toLowerCase())
+        t.expertise.toLowerCase().includes(bestTeam.domain.toLowerCase())
       )
       
       if (matchedTrainer) {
