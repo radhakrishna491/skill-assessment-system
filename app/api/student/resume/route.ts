@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 import { extractSkillsFromText } from '@/lib/extractSkills'
+// @ts-ignore
 import pdf from 'pdf-parse'
-
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get('authorization')

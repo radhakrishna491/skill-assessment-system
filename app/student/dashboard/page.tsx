@@ -11,22 +11,12 @@ interface Skill {
   selfLevel: number
 }
 
-interface Recommendation {
-  teamId: string
-  teamName: string
-  domain: string
-  description: string
-  score: number
-  matchedSkills: string[]
-  missingSkills: string[]
-  reasons: string
-}
-
 export default function StudentDashboard() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [student, setStudent] = useState<any>(null)
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
+  const [recommendations, setRecommendations] = useState<any[]>([])
+  const [gapsData, setGapsData] = useState<any>(null)
   const user = getUser()
 
   useEffect(() => {
@@ -38,21 +28,26 @@ export default function StudentDashboard() {
 
     const fetchData = async () => {
       try {
+        const headers = { Authorization: `Bearer ${token}` }
+        
         // Fetch Profile
-        const profileRes = await fetch('/api/student/profile', {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+        const profileRes = await fetch('/api/student/profile', { headers })
         if (!profileRes.ok) throw new Error('Failed to fetch profile')
         const profileData = await profileRes.json()
         setStudent(profileData.student)
 
         // Fetch Recommendations
-        const recRes = await fetch('/api/student/recommendations', {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+        const recRes = await fetch('/api/student/recommendations', { headers })
         if (recRes.ok) {
           const recData = await recRes.json()
           setRecommendations(recData.recommendations)
+        }
+
+        // Fetch Skill Gaps & Trainer
+        const gapsRes = await fetch('/api/student/gaps', { headers })
+        if (gapsRes.ok) {
+          const gapData = await gapsRes.json()
+          setGapsData(gapData)
         }
 
       } catch (err) {
@@ -72,9 +67,7 @@ export default function StudentDashboard() {
     router.push('/login')
   }
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-xl text-gray-500">Loading your dashboard...</div>
-  }
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading AI Analysis...</div>
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -115,6 +108,36 @@ export default function StudentDashboard() {
                 )}
               </div>
             </div>
+
+            {/* AI Skill Gap & Trainer Recommendation */}
+            {gapsData && (
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h2 className="text-lg font-bold text-gray-800 mb-4">AI Learning Path</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  To reach 100% match for <strong>{gapsData.recommendedTeam?.name}</strong>, you need to learn:
+                </p>
+                {gapsData.skillGaps.length > 0 ? (
+                  <ul className="space-y-3 mb-6">
+                    {gapsData.skillGaps.map((gap: any, idx: number) => (
+                      <li key={idx} className="bg-red-50 p-3 rounded-lg border border-red-100">
+                        <p className="text-sm font-bold text-red-700">{gap.skill}</p>
+                        <p className="text-xs text-red-600 mt-1">{gap.learningAction}</p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-green-600 font-medium mb-6">You have all required skills for this team! 🎉</p>
+                )}
+
+                {gapsData.recommendedTrainer && (
+                  <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+                    <h3 className="text-sm font-bold text-indigo-900 mb-1">Recommended Trainer</h3>
+                    <p className="text-xs text-indigo-700">{gapsData.recommendedTrainer.name}</p>
+                    <p className="text-xs text-indigo-500 mt-1">Expertise: {gapsData.recommendedTrainer.expertise}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right Column: Recommendations */}
@@ -128,7 +151,6 @@ export default function StudentDashboard() {
             ) : (
               recommendations.map((rec) => (
                 <div key={rec.teamId} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
-                  
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-lg font-bold text-gray-900">{rec.teamName}</h3>
@@ -152,7 +174,6 @@ export default function StudentDashboard() {
                       <p className="text-gray-500 italic mt-2">{rec.reasons}</p>
                     </div>
                   </div>
-
                   <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition whitespace-nowrap">
                     Apply to Team
                   </button>
@@ -160,7 +181,6 @@ export default function StudentDashboard() {
               ))
             )}
           </div>
-
         </div>
       </div>
     </div>
