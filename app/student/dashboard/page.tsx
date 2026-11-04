@@ -9,6 +9,8 @@ interface Skill {
   skillName: string
   domain: string
   selfLevel: number
+  verifiedLevel: number | null
+  source: string
 }
 
 export default function StudentDashboard() {
@@ -90,17 +92,26 @@ export default function StudentDashboard() {
           <div className="space-y-8 md:col-span-1">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
               <h2 className="text-lg font-bold text-gray-800 mb-4">Your Profile</h2>
-              <div className="space-y-2 text-sm text-gray-600">
+              <div className="space-y-2 text-sm text-gray-600 mb-6">
                 <p><strong>Branch:</strong> {student?.branch || 'Not set'}</p>
                 <p><strong>Year:</strong> {student?.year || 'Not set'}</p>
               </div>
 
-              <h3 className="text-md font-bold text-gray-800 mt-6 mb-3">Verified Skills</h3>
+              <h3 className="text-md font-bold text-gray-800 mb-3">Skills Profile</h3>
               <div className="flex flex-wrap gap-2">
                 {student?.skills?.length > 0 ? (
                   student.skills.map((skill: Skill) => (
-                    <span key={skill.id} className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-medium border border-blue-100">
-                      {skill.skillName} (Lvl {skill.selfLevel})
+                    <span key={skill.id} className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1.5 ${
+                      skill.source === 'verified' 
+                        ? 'bg-green-50 text-green-700 border-green-200' 
+                        : 'bg-blue-50 text-blue-700 border-blue-100'
+                    }`}>
+                      {skill.skillName} (Lvl {skill.verifiedLevel || skill.selfLevel})
+                      {skill.source === 'verified' && (
+                        <svg className="w-3.5 h-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
                     </span>
                   ))
                 ) : (
