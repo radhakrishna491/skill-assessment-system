@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 import { extractSkillsFromText } from '@/lib/extractSkills'
+
 // @ts-ignore
-import pdf from 'pdf-parse'
+const PDFParser = require('pdf2json')
+
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get('authorization')
@@ -17,6 +19,7 @@ export async function POST(req: Request) {
 
     const formData = await req.formData()
     const file = formData.get('resume') as File
+
     if (!file || !(file instanceof File)) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
     }
@@ -26,20 +29,38 @@ export async function POST(req: Request) {
 
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
-    const pdfData = await pdf(buffer)
 
-    // 🔥 RUN THE AI EXTRACTION
-    const extractedSkills = extractSkillsFromText(pdfData.text)
+    // Parse the PDF using pdf2json
+    const pdfParser = new PDFParser(null, 1)
+    
+    const pdfText = await new Promise<string>((resolve, reject) => {
+      pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
+        // Extract text from the parsed JSON data
+        let text = ""
+        for (const page of pdfData.Pages) {
+          for (const textItem of page.Texts) {
+            for (const run of textItem.R) {
+              text += decodeURIComponent(run.T) + " "
+            }
+          }
+        }
+        resolve(text)
+      })
+      pdfParser.on("pdfParser_dataError", (err: any) => reject(err))
+      pdfParser.parseBuffer(buffer)
+    })
+
+    // Run the NLP AI Extraction
+    const extractedSkills = extractSkillsFromText(pdfText)
 
     // Save text to database
     await prisma.student.update({
       where: { id: student.id },
-      data: { resumeText: pdfData.text }
+      data: { resumeText: pdfText }
     })
 
-    // Save the extracted skills to the DB (marking them as "resume" source)
+    // Save extracted skills
     if (extractedSkills.length > 0) {
-      // Clear old resume-extracted skills to avoid duplicates
       await prisma.studentSkill.deleteMany({
         where: { studentId: student.id, source: "resume" }
       })
@@ -49,7 +70,7 @@ export async function POST(req: Request) {
           studentId: student.id,
           skillName: skill.skillName,
           domain: skill.domain,
-          selfLevel: 3, // Default to intermediate until verified
+          selfLevel: 3,
           source: "resume"
         }))
       })
@@ -61,7 +82,7 @@ export async function POST(req: Request) {
       skills: extractedSkills
     })
   } catch (error) {
-    console.error(error)
+    console.error("PDF Parsing Error:", error)
     return NextResponse.json({ error: 'Failed to process PDF' }, { status: 500 })
   }
 }

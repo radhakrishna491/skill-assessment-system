@@ -17,7 +17,7 @@
     "jsonwebtoken": "^9.0.3",
     "natural": "^8.2.6",
     "next": "16.4.3",
-    "pdf-parse": "^2.4.5",
+    "pdf2json": "^4.1.0",
     "prisma": "^7.10.1",
     "react": "19.3.0",
     "react-dom": "19.3.0"
