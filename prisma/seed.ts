@@ -65,38 +65,38 @@ async function main() {
     },
   })
 
-  // 4. Create Teams
+      // 4. Create Teams with WEIGHTS
   await prisma.team.createMany({
     data: [
       { 
         name: 'Alpha Competitive Coders', 
         domain: 'Competitive Coding', 
-        requiredSkills: JSON.stringify(['C++', 'DSA', 'Java']),
+        requiredSkills: JSON.stringify([
+          { skill: "C++", weight: 5 },
+          { skill: "DSA", weight: 5 },
+          { skill: "Java", weight: 2 }
+        ]),
         description: 'Team focused on ACM ICPC and Leetcode.'
       },
       { 
         name: 'Data Wizards', 
         domain: 'Data Science', 
-        requiredSkills: JSON.stringify(['Python', 'Pandas', 'Machine Learning']),
+        requiredSkills: JSON.stringify([
+          { skill: "Python", weight: 5 },
+          { skill: "Pandas", weight: 3 },
+          { skill: "Machine Learning", weight: 4 }
+        ]),
         description: 'Team focused on Kaggle competitions and analytics.'
       },
       { 
         name: 'Full Stack Ninjas', 
         domain: 'Full Stack', 
-        requiredSkills: JSON.stringify(['React', 'Node.js', 'SQL']),
+        requiredSkills: JSON.stringify([
+          { skill: "React", weight: 5 },
+          { skill: "Node.js", weight: 4 },
+          { skill: "SQL", weight: 3 }
+        ]),
         description: 'Builds the college internal tools and web apps.'
       }
     ]
-  })
-
-  console.log('Seed completed successfully!')
-}
-
-main()
-  .catch((e) => {
-    console.error(e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
+  })}

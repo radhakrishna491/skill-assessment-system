@@ -1,35 +1,59 @@
+export interface TeamRequirement {
+  skill: string
+  weight: number
+}
+
 export interface MatchResult {
-    score: number
-    matchedSkills: string[]
-    missingSkills: string[]
-  }
+  score: number
+  matchedSkills: string[]
+  missingSkills: string[]
+  explanation: string
+}
+
+export function calculateTeamMatch(
+  studentSkills: { skillName: string, level: number }[], 
+  teamRequirements: any[] // Changed to 'any[]' to handle old and new data formats safely
+): MatchResult {
   
-  export function calculateTeamMatch(
-    studentSkills: string[], 
-    requiredSkills: string[]
-  ): MatchResult {
-    // Normalize strings to lowercase for comparison
-    const studentSet = new Set(studentSkills.map(s => s.toLowerCase()))
-    const requiredSet = requiredSkills.map(s => s.toLowerCase())
-  
-    const matched: string[] = []
-    const missing: string[] = []
-  
-    for (const reqSkill of requiredSet) {
-      if (studentSet.has(reqSkill)) {
-        matched.push(reqSkill)
-      } else {
-        missing.push(reqSkill)
-      }
+  let totalWeight = 0
+  let achievedWeight = 0
+  const matched: string[] = []
+  const missing: string[] = []
+
+  const studentSkillMap = new Map(
+    studentSkills.map(s => [s.skillName.toLowerCase(), s.level])
+  )
+
+  for (const req of teamRequirements) {
+    // SAFEGUARD: If the DB still has an old string format, handle it
+    const skillName = typeof req === 'string' ? req : req?.skill;
+    const weight = typeof req === 'string' ? 1 : (req?.weight || 1);
+
+    if (!skillName) continue; // Skip if the skill name is somehow missing
+
+    totalWeight += weight
+
+    const studentLevel = studentSkillMap.get(skillName.toLowerCase())
+
+    if (studentLevel) {
+      const proficiencyMultiplier = studentLevel / 5 
+      achievedWeight += (weight * proficiencyMultiplier)
+      matched.push(`${skillName} (Level ${studentLevel})`)
+    } else {
+      missing.push(`${skillName} (Weight: ${weight})`)
     }
-  
-    // Calculate score (0.0 to 1.0)
-    // Score = (matched skills) / (total required skills)
-    const score = requiredSet.length === 0 ? 0 : matched.length / requiredSet.length
-  
-    return {
-      score: Math.round(score * 100) / 100, // Round to 2 decimal places
-      matchedSkills: matched,
-      missingSkills: missing
-    }
   }
+
+  const score = totalWeight === 0 ? 0 : achievedWeight / totalWeight
+
+  const explanation = `Student achieved ${Math.round(score * 100)}% of the weighted requirements. 
+  Matched: ${matched.length > 0 ? matched.join(', ') : 'None'}. 
+  Missing critical skills: ${missing.length > 0 ? missing.join(', ') : 'None'}.`
+
+  return {
+    score: Math.round(score * 100) / 100,
+    matchedSkills: matched,
+    missingSkills: missing,
+    explanation: explanation
+  }
+}

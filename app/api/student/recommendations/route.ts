@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
-import { calculateTeamMatch } from '@/lib/matching'
+import { calculateTeamMatch, TeamRequirement } from '@/lib/matching'
 
 export async function GET(req: Request) {
   try {
@@ -19,17 +19,22 @@ export async function GET(req: Request) {
 
     if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 })
 
-    const studentSkillNames = student.skills.map(s => s.skillName)
+    // Map student skills to the format our new AI expects
+    const studentSkillsForMatch = student.skills.map(s => ({
+      skillName: s.skillName,
+      level: s.verifiedLevel || s.selfLevel // Use verified if available, otherwise self-reported
+    }))
 
     // 2. Get all teams
     const teams = await prisma.team.findMany()
 
-    // 3. Calculate match score for each team
+    // 3. Calculate weighted match score for each team
     const recommendations = teams.map(team => {
-      // Parse the JSON string of required skills
-      const requiredSkills = JSON.parse(team.requiredSkills) as string[]
+      // Parse the JSON string of required skills (which now includes weights)
+      const requiredSkills = JSON.parse(team.requiredSkills) as TeamRequirement[]
       
-      const match = calculateTeamMatch(studentSkillNames, requiredSkills)
+      // Call our upgraded AI matching function
+      const match = calculateTeamMatch(studentSkillsForMatch, requiredSkills)
 
       return {
         teamId: team.id,
@@ -39,7 +44,7 @@ export async function GET(req: Request) {
         score: match.score,
         matchedSkills: match.matchedSkills,
         missingSkills: match.missingSkills,
-        reasons: `Matched ${match.matchedSkills.length} out of ${requiredSkills.length} required skills.`
+        reasons: match.explanation
       }
     })
 
@@ -49,7 +54,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ recommendations })
 
   } catch (error) {
-    console.error(error)
+    console.error("Recommendation Error:", error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
