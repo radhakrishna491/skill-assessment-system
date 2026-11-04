@@ -2,218 +2,149 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getToken, getUser, removeToken } from '@/lib/auth-client'
+import { getToken, getUser } from '@/lib/auth-client'
 
-export default function TrainerDashboard() {
+export default function TrainerConsole() {
   const router = useRouter()
+  const [loading, setLoading] = useState(true)
   const [students, setStudents] = useState<any[]>([])
   const [assessments, setAssessments] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selectedStudent, setSelectedStudent] = useState<any>(null)
-  
-  // Evaluation Form State
-  const [domain, setDomain] = useState('')
-  const [feedback, setFeedback] = useState('')
-  const [strengths, setStrengths] = useState('')
-  const [weaknesses, setWeaknesses] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-
   const user = getUser()
 
-  const fetchData = async () => {
+  useEffect(() => {
     const token = getToken()
-    if (!token) {
-      router.push('/login')
-      return
-    }
+    if (!token) return
 
-    try {
+    const fetchData = async () => {
       const headers = { Authorization: `Bearer ${token}` }
-      
       const [studentsRes, assessmentsRes] = await Promise.all([
         fetch('/api/trainer/students', { headers }),
         fetch('/api/trainer/assessment', { headers })
       ])
-
-      if (studentsRes.ok) {
-        const data = await studentsRes.json()
-        setStudents(data.students)
-      }
-      if (assessmentsRes.ok) {
-        const data = await assessmentsRes.json()
-        setAssessments(data.assessments)
-      }
-    } catch (err) {
-      console.error(err)
-      removeToken()
-      router.push('/login')
-    } finally {
+      if (studentsRes.ok) setStudents((await studentsRes.json()).students)
+      if (assessmentsRes.ok) setAssessments((await assessmentsRes.json()).assessments)
       setLoading(false)
     }
-  }
-
-  useEffect(() => {
     fetchData()
   }, [router])
 
-  const handleLogout = () => {
-    removeToken()
-    router.push('/login')
-  }
-
-  const handleSubmitEvaluation = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
-    const token = getToken()
-
-    try {
-      const res = await fetch('/api/trainer/assessment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          studentId: selectedStudent.id,
-          domain,
-          scores: { overall: 8 },
-          feedback,
-          strengths,
-          weaknesses
-        })
-      })
-
-      if (res.ok) {
-        alert('Evaluation submitted successfully!')
-        setSelectedStudent(null)
-        setDomain('')
-        setFeedback('')
-        setStrengths('')
-        setWeaknesses('')
-        // Refresh the data to show the new assessment in history
-        fetchData()
-      } else {
-        alert('Failed to submit evaluation')
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-900">Loading...</div>
+  if (loading) return <div className="text-gray-500">Loading console...</div>
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
-        
-        {/* Header */}
-        <div className="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Trainer Dashboard</h1>
-            <p className="text-gray-500">Welcome, {user?.name}. Select a student to evaluate.</p>
-          </div>
-          <button onClick={handleLogout} className="text-red-600 hover:text-red-700 font-medium px-4 py-2 rounded-lg hover:bg-red-50 transition">
-            Logout
-          </button>
-        </div>
-
-        {/* Student List */}
+    <div className="space-y-8">
+      {/* Profile Header */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Students to Evaluate</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {students.map(student => (
-              <div key={student.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-900">{student.user.name}</h3>
-                <p className="text-sm text-gray-500 mb-4">{student.user.email}</p>
-                
-                <div className="mb-4">
-                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Skills</p>
-                  <div className="flex flex-wrap gap-1">
-                    {student.skills.map((s: any) => (
-                      <span key={s.id} className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
-                        {s.skillName}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            {user?.name}
+            <span className="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full border border-blue-200 uppercase">Faculty Lead</span>
+          </h1>
+          <p className="text-gray-500 mt-2">Associate Professor & AI Lab Director • Computer Science & Engineering • 9 Years Exp</p>
+          <div className="mt-4 flex items-center gap-2">
+            <span className="text-sm font-bold text-gray-700 bg-gray-100 px-3 py-1 rounded-lg">Domain Specialization:</span>
+            <span className="text-sm text-gray-600">Data Science, Machine Learning, Predictive Modeling</span>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Student Caseload</p>
+          <p className="text-4xl font-bold text-gray-900">{students.length} <span className="text-xl text-gray-400">/ 25</span></p>
+        </div>
+      </div>
 
-                <button 
-                  onClick={() => setSelectedStudent(student)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition"
-                >
-                  Evaluate Student
-                </button>
-              </div>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+          <div>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Assigned Students</p>
+            <p className="text-4xl font-bold text-gray-900">{students.length}</p>
+            <p className="text-xs text-gray-500 mt-1">Under active mentorship</p>
+          </div>
+          <div className="bg-blue-50 p-3 rounded-lg"><svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg></div>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+          <div>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Completed Evaluations</p>
+            <p className="text-4xl font-bold text-gray-900">{assessments.length}</p>
+            <p className="text-xs text-gray-500 mt-1">Rubrics recorded</p>
+          </div>
+          <div className="bg-green-50 p-3 rounded-lg"><svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+          <div>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Pending Assessments</p>
+            <p className="text-4xl font-bold text-gray-900">0</p>
+            <p className="text-xs text-gray-500 mt-1">Awaiting technical review</p>
+          </div>
+          <div className="bg-orange-50 p-3 rounded-lg"><svg className="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
+        </div>
+      </div>
+
+      {/* Assigned Students Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+        <div className="mb-6">
+          <h2 className="text-lg font-bold text-gray-900 uppercase">Assigned Students Cohort ({students.length})</h2>
+          <p className="text-sm text-gray-500 mt-1">Conduct domain evaluations, enter skill rubrics, and provide feedback.</p>
+        </div>
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider border-y border-gray-200">
+              <th className="p-4">Student Name</th>
+              <th className="p-4">UID</th>
+              <th className="p-4">Program / Branch</th>
+              <th className="p-4">Semester</th>
+              <th className="p-4">CGPA</th>
+              <th className="p-4">Domain</th>
+              <th className="p-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {students.map((student) => (
+              <tr key={student.id} className="hover:bg-gray-50 transition">
+                <td className="p-4 font-bold text-gray-900">{student.user.name}</td>
+                <td className="p-4 text-sm text-gray-500">STU-{student.id.slice(0, 4).toUpperCase()}</td>
+                <td className="p-4 text-sm text-gray-500">{student.branch}</td>
+                <td className="p-4 text-sm text-gray-500">Sem {student.year}</td>
+                <td className="p-4 text-sm text-gray-500">8.85</td>
+                <td className="p-4">
+                  <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-3 py-1 rounded-full border border-blue-200">
+                    Data Science & Machine Learning
+                  </span>
+                </td>
+                <td className="p-4 text-right flex gap-2 justify-end">
+                  <button className="text-xs font-semibold text-gray-700 border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-50 transition">Inspect Profile</button>
+                  <button className="text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded transition">Evaluate</button>
+                </td>
+              </tr>
             ))}
-          </div>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Evaluation History */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+        <h2 className="text-lg font-bold text-gray-900 uppercase mb-6">Recent Evaluation History ({assessments.length})</h2>
+        <div className="space-y-4">
+          {assessments.map((assessment) => (
+            <div key={assessment.id} className="border border-gray-200 rounded-lg p-4 flex justify-between items-center hover:bg-gray-50 transition">
+              <div>
+                <div className="flex items-center gap-3 mb-1">
+                  <h3 className="font-bold text-gray-900">{assessment.student?.user?.name || 'Student'}</h3>
+                  <span className="text-xs text-gray-400">(STU-2024-002)</span>
+                  <span className="bg-purple-50 text-purple-700 text-xs font-semibold px-2 py-0.5 rounded">{assessment.domain}</span>
+                </div>
+                <p className="text-sm text-gray-500 italic">"{assessment.feedback}"</p>
+              </div>
+              <div className="text-right flex items-center gap-4">
+                <div>
+                  <p className="text-2xl font-bold text-blue-600">92</p>
+                  <p className="text-[10px] text-gray-400 uppercase font-bold">Tech / 100</p>
+                </div>
+                <span className="bg-green-50 text-green-700 text-xs font-bold px-3 py-1 rounded-full border border-green-200">Recorded</span>
+              </div>
+            </div>
+          ))}
+          {assessments.length === 0 && <p className="text-gray-500 text-sm">No evaluations yet.</p>}
         </div>
-
-        {/* Past Evaluations */}
-        <div className="pt-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Your Past Evaluations</h2>
-          {assessments.length === 0 ? (
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-gray-500">
-              You haven't submitted any evaluations yet.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {assessments.map(a => (
-                <div key={a.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-md font-bold text-gray-900">{a.student.user.name}</h3>
-                    <span className="text-xs text-gray-400">{new Date(a.createdAt).toLocaleDateString()}</span>
-                  </div>
-                  <p className="text-xs font-semibold text-blue-600 mb-2">Domain: {a.domain}</p>
-                  <p className="text-sm text-gray-600 mb-3">"{a.feedback}"</p>
-                  <div className="flex gap-4 text-xs">
-                    <p className="text-green-600"><strong>Strengths:</strong> {a.strengths}</p>
-                    <p className="text-red-600"><strong>Weaknesses:</strong> {a.weaknesses}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Evaluation Modal */}
-        {selectedStudent && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
-              <h2 className="text-xl font-bold mb-4 text-gray-900">Evaluate {selectedStudent.user.name}</h2>
-              
-              <form onSubmit={handleSubmitEvaluation} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Domain Assessed</label>
-                  <input required value={domain} onChange={e => setDomain(e.target.value)} placeholder="e.g. Data Science" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 bg-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Strengths</label>
-                  <input required value={strengths} onChange={e => setStrengths(e.target.value)} placeholder="e.g. Great at Python" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 bg-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Weaknesses</label>
-                  <input required value={weaknesses} onChange={e => setWeaknesses(e.target.value)} placeholder="e.g. Needs work on ML" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 bg-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Feedback</label>
-                  <textarea required value={feedback} onChange={e => setFeedback(e.target.value)} rows={3} placeholder="Overall assessment..." className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 bg-white" />
-                </div>
-
-                <div className="flex gap-3 justify-end pt-4">
-                  <button type="button" onClick={() => setSelectedStudent(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">
-                    Cancel
-                  </button>
-                  <button type="submit" disabled={submitting} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50">
-                    {submitting ? 'Submitting...' : 'Submit Evaluation'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
       </div>
     </div>
   )
